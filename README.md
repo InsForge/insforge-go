@@ -10,6 +10,25 @@ go get github.com/InsForge/insforge-go
 
 Requires Go 1.21+.
 
+## Releases
+
+Go modules are published by pushing a semantic version tag such as `v0.1.0` to this repository. No package registry token or upload step is required. Tag pushes run the same CI checks as pull requests and `main`. Stable tags create a GitHub Release after CI passes; prerelease tags publish the module without creating a GitHub Release.
+
+The current module path supports `v0.x.y` and `v1.x.y` tags, including prereleases such as `v0.2.0-beta.1`. Before publishing `v2.0.0` or later, the module path must first adopt Go's `/vN` major-version suffix.
+
+To publish a release after the intended commit is on `main` and CI is green:
+
+```bash
+git tag -a vX.Y.Z -m "vX.Y.Z"
+git push origin vX.Y.Z
+```
+
+Once the Go module proxy has discovered the tag, verify it with:
+
+```bash
+go list -m github.com/InsForge/insforge-go@vX.Y.Z
+```
+
 ## Quick Start
 
 ```go

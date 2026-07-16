@@ -74,8 +74,8 @@ type StreamChunk struct {
 	Created int64  `json:"created"`
 	Model   string `json:"model"`
 	Choices []struct {
-		Index  int `json:"index"`
-		Delta  struct {
+		Index int `json:"index"`
+		Delta struct {
 			Role    string `json:"role"`
 			Content string `json:"content"`
 		} `json:"delta"`
