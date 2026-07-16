@@ -83,7 +83,7 @@ jobs:
           cache-dependency-path: go.sum
 
       - name: Test with race detector
-        run: go test -race ./...
+        run: go test -race -count=1 ./...
 
   release:
     name: Create stable GitHub Release
