@@ -149,11 +149,17 @@ result := client.Database.Query(ctx, "SELECT * FROM users WHERE email = $1", "us
 ```go
 bucket := client.Storage.From("my-bucket")
 
-// Upload bytes
+// Upload bytes (standard PUT semantics: uploading to an existing key
+// replaces the object in place)
 result := bucket.Upload(ctx, "path/file.png", fileBytes, "image/png")
 
 // Upload from io.Reader
 result := bucket.UploadReader(ctx, "path/file.png", file, "image/png")
+
+// Upload under an auto-generated, collision-free key derived from the
+// filename (sanitized base + timestamp + random suffix)
+result := bucket.UploadAuto(ctx, "file.png", fileBytes, "image/png")
+result := bucket.UploadAutoReader(ctx, "file.png", file, "image/png")
 
 // Download
 result := bucket.Download(ctx, "path/file.png")

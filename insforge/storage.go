@@ -3,6 +3,7 @@ package insforge
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -10,6 +11,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Storage provides file storage operations.
@@ -40,7 +42,50 @@ func (b *StorageBucket) GetPublicURL(path string) string {
 	return fmt.Sprintf("%s%s/objects/%s", b.http.baseURL, b.base(), clean)
 }
 
+// generateObjectKey derives a unique object key from a filename:
+// "<sanitized-base>-<timestamp>-<random><ext>". Auto-key generation is a
+// client-side convenience — the storage API has no server-side key minting —
+// so UploadAuto produces the key here and then uploads through the standard
+// Upload path.
+func generateObjectKey(filename string) string {
+	base, ext := filename, ""
+	if dot := strings.LastIndex(filename, "."); dot > 0 {
+		base, ext = filename[:dot], filename[dot:]
+	}
+	sanitized := strings.Map(func(r rune) rune {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '-', r == '_':
+			return r
+		default:
+			return '-'
+		}
+	}, base)
+	if len(sanitized) > 32 {
+		sanitized = sanitized[:32]
+	}
+	if sanitized == "" {
+		sanitized = "file"
+	}
+	return fmt.Sprintf("%s-%d-%s%s", sanitized, time.Now().UnixMilli(), randomKeySuffix(), ext)
+}
+
+// randomKeySuffix returns 6 random base36 characters for collision avoidance.
+func randomKeySuffix() string {
+	const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789"
+	buf := make([]byte, 6)
+	if _, err := rand.Read(buf); err != nil {
+		// crypto/rand should never fail; fall back to a timestamp-derived suffix.
+		return strconv.FormatInt(time.Now().UnixNano()%2176782336, 36)
+	}
+	for i := range buf {
+		buf[i] = alphabet[int(buf[i])%len(alphabet)]
+	}
+	return string(buf)
+}
+
 // Upload uploads raw bytes to the given path in the bucket.
+// Standard PUT semantics: uploading to an existing key replaces the current
+// object in place (requires an InsForge backend with standard-PUT storage).
 func (b *StorageBucket) Upload(ctx context.Context, path string, data []byte, contentType string) Result[interface{}] {
 	if contentType == "" {
 		contentType = "application/octet-stream"
@@ -124,12 +169,33 @@ func (b *StorageBucket) Upload(ctx context.Context, path string, data []byte, co
 }
 
 // UploadReader uploads from an io.Reader.
+// Standard PUT semantics: uploading to an existing key replaces the current
+// object in place (requires an InsForge backend with standard-PUT storage).
 func (b *StorageBucket) UploadReader(ctx context.Context, path string, r io.Reader, contentType string) Result[interface{}] {
 	data, err := io.ReadAll(r)
 	if err != nil {
 		return fail[interface{}](&InsForgeError{Message: "failed to read upload data: " + err.Error()})
 	}
 	return b.Upload(ctx, path, data, contentType)
+}
+
+// UploadAuto uploads raw bytes under an automatically generated,
+// collision-free key. The key is derived client-side from filename
+// (sanitized base + timestamp + random suffix) and uploaded through the
+// standard Upload path, so repeated uploads of the same file never overwrite
+// each other. Pass an empty filename to use the default "file" base.
+func (b *StorageBucket) UploadAuto(ctx context.Context, filename string, data []byte, contentType string) Result[interface{}] {
+	return b.Upload(ctx, generateObjectKey(filename), data, contentType)
+}
+
+// UploadAutoReader uploads from an io.Reader under an automatically
+// generated, collision-free key. See UploadAuto.
+func (b *StorageBucket) UploadAutoReader(ctx context.Context, filename string, r io.Reader, contentType string) Result[interface{}] {
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return fail[interface{}](&InsForgeError{Message: "failed to read upload data: " + err.Error()})
+	}
+	return b.Upload(ctx, generateObjectKey(filename), data, contentType)
 }
 
 // Download downloads an object and returns its raw bytes.
