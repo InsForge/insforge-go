@@ -97,6 +97,8 @@ func main() {
 |--------|-------------|
 | `SignUp(ctx, email, password, opts...)` | Register a new user |
 | `SignInWithPassword(ctx, email, password)` | Login with email/password |
+| `SignInWithOtp(ctx, email)` | Send a one-time sign-in code by email |
+| `VerifyOtp(ctx, email, otp, name)` | Verify the sign-in code and create a session (`name` optional, `""` to omit) |
 | `SignOut(ctx)` | Logout |
 | `SignInWithOAuth(ctx, provider, redirectTo)` | OAuth sign-in |
 | `ExchangeOAuthCode(ctx, code, codeVerifier)` | Exchange OAuth code |
@@ -164,6 +166,12 @@ result := bucket.List(ctx, &insforge.ListOptions{Prefix: "path/", Limit: 50})
 
 // Delete
 result := bucket.Remove(ctx, "path/file.png")
+
+// Delete multiple objects in one request (max 1000 keys, one result per key)
+batch := bucket.RemoveMany(ctx, []string{"a.png", "b.png"})
+for _, r := range batch.Data.Results {
+    fmt.Println(r.Key, r.Status) // "deleted", "notFound", or "failed"
+}
 
 // Get public URL
 url := bucket.GetPublicURL("path/file.png")

@@ -224,6 +224,26 @@ func (b *StorageBucket) Remove(ctx context.Context, path string) Result[interfac
 	return ok[interface{}](raw)
 }
 
+// RemoveMany deletes multiple objects from the bucket in a single request.
+//
+// The server accepts at most 1000 keys per request and returns one result
+// per key; keys are not split into multiple requests.
+func (b *StorageBucket) RemoveMany(ctx context.Context, paths []string) Result[*DeleteObjectsResponse] {
+	keys := make([]string, len(paths))
+	for i, p := range paths {
+		keys[i] = strings.TrimLeft(p, "/")
+	}
+	raw, err := b.http.deleteWithBody(ctx, b.base()+"/objects", map[string]interface{}{"keys": keys}, nil)
+	if err != nil {
+		return fail[*DeleteObjectsResponse](err)
+	}
+	resp, decErr := decode[DeleteObjectsResponse](raw)
+	if decErr != nil {
+		return fail[*DeleteObjectsResponse](decErr)
+	}
+	return ok(&resp)
+}
+
 // ListOptions controls list pagination and filtering.
 type ListOptions struct {
 	Prefix string

@@ -59,6 +59,43 @@ func (a *Auth) SignInWithPassword(ctx context.Context, email, password string) R
 	return ok(&session)
 }
 
+// SignInWithOtp sends a one-time sign-in code to an email address.
+//
+// The response is intentionally generic whether or not an account exists, to
+// avoid account enumeration. Complete the flow with VerifyOtp.
+func (a *Auth) SignInWithOtp(ctx context.Context, email string) Result[map[string]interface{}] {
+	raw, err := a.http.post(ctx, "/api/auth/email/send-otp", map[string]interface{}{"email": email}, nil)
+	if err != nil {
+		return fail[map[string]interface{}](err)
+	}
+	m, _ := raw.(map[string]interface{})
+	return ok(m)
+}
+
+// VerifyOtp verifies an email sign-in code and creates a session.
+// On success the access token is stored automatically.
+//
+// If the email is new, a verified passwordless user is created; name sets the
+// display name only on that first-time creation (pass "" to omit it).
+func (a *Auth) VerifyOtp(ctx context.Context, email, otp, name string) Result[*Session] {
+	body := map[string]interface{}{"method": "otp", "email": email, "otp": otp}
+	if name != "" {
+		body["name"] = name
+	}
+	raw, err := a.http.post(ctx, "/api/auth/sessions", body, nil)
+	if err != nil {
+		return fail[*Session](err)
+	}
+	session, decErr := decode[Session](raw)
+	if decErr != nil {
+		return fail[*Session](decErr)
+	}
+	if session.AccessToken != "" {
+		a.http.setAccessToken(session.AccessToken)
+	}
+	return ok(&session)
+}
+
 // SignOut logs out the current user and clears the stored token.
 func (a *Auth) SignOut(ctx context.Context) Result[map[string]interface{}] {
 	raw, err := a.http.post(ctx, "/api/auth/logout", nil, nil)
