@@ -154,6 +154,14 @@ func (c *httpClient) delete(ctx context.Context, path string, params url.Values,
 	return c.do(req)
 }
 
+func (c *httpClient) deleteWithBody(ctx context.Context, path string, body interface{}, extraHeaders map[string]string) (interface{}, error) {
+	req, err := c.buildRequest(ctx, http.MethodDelete, path, body, extraHeaders)
+	if err != nil {
+		return nil, err
+	}
+	return c.do(req)
+}
+
 func (c *httpClient) uploadRaw(ctx context.Context, path string, data []byte, contentType string) (interface{}, error) {
 	fullURL := c.baseURL + path
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, fullURL, bytes.NewReader(data))

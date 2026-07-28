@@ -78,6 +78,19 @@ type StorageFile struct {
 	Metadata   map[string]interface{} `json:"metadata,omitempty"`
 }
 
+// DeleteObjectResult describes the outcome for one key in a batch delete.
+type DeleteObjectResult struct {
+	Key     string `json:"key"`
+	Status  string `json:"status"` // "deleted", "notFound", or "failed"
+	Message string `json:"message,omitempty"`
+}
+
+// DeleteObjectsResponse is the response of a batch object delete,
+// with one result per requested key.
+type DeleteObjectsResponse struct {
+	Results []DeleteObjectResult `json:"results"`
+}
+
 // --- AI types ---
 
 // ChatMessage represents a single message in a conversation.
